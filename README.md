@@ -10,7 +10,7 @@ Eyeglass detection is a crucial subtask within the broader field of computer vis
 
 Modern approaches typically rely on deep learning architectures such as Convolutional Neural Networks (CNNs), which often demand high computational resources, large annotated datasets, and long training times. This project offers an alternative, emphasizing interpretability, efficiency, and real-time applicability by leveraging classical computer vision techniques—such as edge detection and facial landmark-based geometric reasoning—combined with modern face detection tools like MTCNN.
 
-### Objective
+## Objective
 
 This project aims to achieve the following:
 
