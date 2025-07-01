@@ -33,8 +33,8 @@ This project aims to achieve the following:
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/your-repository-name.git
-    cd your-repository-name/realtime-glasses-detection
+    git clone https://github.com/siddharth-narigra/realtime-glass-detection.git
+    cd realtime-glass-detection
     ```
 2.  **Create a virtual environment (recommended):**
     ```bash
