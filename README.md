@@ -52,19 +52,12 @@ This project aims to achieve the following:
 ## Project Structure
 
 ```
-project/
-├── docs/
-│   ├── group7_projectreport.docx
-│   └── group7.pptx
-├── realtime-glasses-detection/
-│   ├── data/
-│   │   └── shape_predictor_5_face_landmarks.dat
-│   ├── img/
-│   │   ├── example_1.gif
-│   │   └── schematic.PNG
-│   ├── eyeglass_detector.py
-│   └── extra.py
-└── .gitignore
+realtime-glass-detection/
+├── README.md
+└── realtime-glasses-detection/
+    ├── data/
+    │   └── shape_predictor_5_face_landmarks.dat
+    └── eyeglass_detector.py
 ```
 
 ## Screenshots
