@@ -30,7 +30,7 @@ The system runs efficiently on CPUs and is ideal for explainable, fast, and reso
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/your-repo/realtime-glass-detection.git
+   git clone https://github.com/siddharth-narigra/realtime-glass-detection.git
    cd realtime-glass-detection
    ```
 
