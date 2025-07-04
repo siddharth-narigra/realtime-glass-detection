@@ -103,16 +103,6 @@ realtime-glass-detection/
 
 The system runs efficiently without requiring a GPU.
 
-## Screenshots
-
-Example of detection in real-time:
-
-![Example GIF](realtime-glasses-detection/img/example_1.gif)
-
-System flow diagram:
-
-![System Schematic](realtime-glasses-detection/img/schematic.PNG)
-
 ## Results
 
 Tested on live webcam feeds with different faces, poses, and lighting:
