@@ -16,50 +16,38 @@ This system captures webcam frames, detects faces with MTCNN, aligns each face b
 ## Architecture Diagram
 
 ```mermaid
-flowchart TD
-    subgraph INPUT ["📹 Input"]
+flowchart LR
+    subgraph Input
         A[Webcam Frame]
     end
 
-    subgraph FACE_DETECTION ["👤 Face Detection"]
-        B[MTCNN Face Detection]
-        C[Eye Landmark Extraction]
+    subgraph FaceDetection [Face Detection]
+        B[MTCNN]
+        C[Eye Landmarks]
     end
 
-    subgraph PREPROCESSING ["🔄 Preprocessing"]
+    subgraph Preprocessing
         D[Face Alignment]
-        E["Edge Map (Sobel + Otsu)"]
+        E[Edge Map]
     end
 
-    subgraph ANALYSIS ["🔍 Analysis"]
+    subgraph Analysis
         F[ROI Extraction]
-        G[Nose Bridge Region]
-        H[Cheek Shadow Regions]
-        I["Density Scoring<br/>0.3×R1 + 0.7×R2"]
+        G[Density Scoring]
     end
 
-    subgraph DECISION ["✅ Decision"]
-        J{"Score > 0.15?"}
-        K[🕶️ GLASSES DETECTED]
-        L[👁️ NO GLASSES]
+    subgraph Output
+        H{Score > 0.15}
+        I[Glasses Detected]
+        J[No Glasses]
     end
 
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    E --> F
-    F --> G
-    F --> H
-    G --> I
-    H --> I
-    I --> J
-    J -->|Yes| K
-    J -->|No| L
+    A --> B --> C --> D --> E --> F --> G --> H
+    H -->|Yes| I
+    H -->|No| J
 
-    style K fill:#4CAF50,color:#fff
-    style L fill:#FF5722,color:#fff
-    style J fill:#2196F3,color:#fff
+    style I fill:#2e7d32,color:#fff
+    style J fill:#c62828,color:#fff
 ```
 
 ## Architecture Explanation
