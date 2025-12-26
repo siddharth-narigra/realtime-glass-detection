@@ -1,133 +1,240 @@
 # Real-Time Eyeglass Detection System
+![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+![OpenCV](https://img.shields.io/badge/CV-OpenCV%204.6-5C3EE8.svg)
+![MTCNN](https://img.shields.io/badge/Face-MTCNN-orange.svg)
+![TensorFlow](https://img.shields.io/badge/Backend-TensorFlow-FF6F00.svg)
 
-## Overview
+Detects eyeglasses in real-time webcam feeds using edge density analysis on aligned facial regions—no heavy deep learning models required.
 
-This project is a lightweight real-time system to detect eyeglasses using classical computer vision techniques. Instead of relying on large deep learning models, it uses edge detection, facial landmarks, and simple mathematical heuristics to identify the presence of glasses in a webcam feed.
+## Problem Statement
+Eyeglass detection typically requires large CNN classifiers or expensive cloud APIs, making it impractical for embedded systems, privacy-sensitive applications, or quick prototyping where you just need a fast binary answer: glasses or no glasses.
 
-It leverages:
+## Solution Overview
+This system captures webcam frames, detects faces with MTCNN, aligns each face based on eye landmarks, then analyzes edge density in specific facial regions (nose bridge, cheek shadows) to determine glasses presence—all running locally on CPU at 25-30 FPS.
 
-* **MTCNN** for face and keypoint detection
-* **Edge detection + alignment** for analyzing key facial regions
-* **ROI-based logic** to estimate edge density, which indicates glasses
+## Architecture Diagram
 
-The system runs efficiently on CPUs and is ideal for explainable, fast, and resource-friendly deployment.
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         REAL-TIME DETECTION PIPELINE                        │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-## Objectives
+  ┌──────────┐     ┌──────────────┐     ┌───────────────┐     ┌─────────────┐
+  │  Webcam  │────▶│ MTCNN Face   │────▶│ Face Alignment│────▶│ Edge Map    │
+  │  Frame   │     │ Detection    │     │ (Eye-based)   │     │ (Sobel+Otsu)│
+  └──────────┘     └──────────────┘     └───────────────┘     └──────┬──────┘
+                          │                                          │
+                          ▼                                          ▼
+                   ┌──────────────┐                         ┌─────────────────┐
+                   │ Eye Landmark │                         │ ROI Extraction  │
+                   │ Extraction   │                         │ (Nose + Cheeks) │
+                   └──────────────┘                         └────────┬────────┘
+                                                                     │
+                                                                     ▼
+                                                            ┌─────────────────┐
+                                                            │ Density Scoring │
+                                                            │ 0.3×R1 + 0.7×R2 │
+                                                            └────────┬────────┘
+                                                                     │
+                                                                     ▼
+                                                            ┌─────────────────┐
+                                                            │ Threshold Check │
+                                                            │ score > 0.15?   │
+                                                            └────────┬────────┘
+                                                                     │
+                                              ┌──────────────────────┴───────────────────────┐
+                                              ▼                                              ▼
+                                     ┌─────────────────┐                          ┌─────────────────┐
+                                     │ GLASSES DETECTED│                          │  NO GLASSES     │
+                                     └─────────────────┘                          └─────────────────┘
+```
 
-* Detect eyeglasses using face landmarks and edge density
-* Run the detection pipeline in real time using webcam input
-* Create an interpretable and modular system with easy extensibility
+## Architecture Explanation
+- **Webcam Capture**: OpenCV grabs frames from the default camera device.
+- **MTCNN Face Detection**: Locates face bounding boxes and five key landmarks (eyes, nose, mouth corners).
+- **Eye Landmark Extraction**: `face_alignment.py` pulls left/right eye coordinates from MTCNN output.
+- **Face Alignment**: Rotates and scales the face so eyes are level, normalizing pose variations.
+- **Edge Map Generation**: `utils.py` applies Gaussian blur + Sobel filter + Otsu thresholding to isolate strong edges.
+- **ROI Extraction**: Two regions are analyzed—nose bridge area (frame edges) and cheek areas (lens shadows).
+- **Density Scoring**: Edge pixel ratio is computed per region, then combined with 0.3/0.7 weighting.
+- **Threshold Decision**: If combined score exceeds 0.15, glasses are flagged as present.
 
-## Tech Stack
+## Engineering Decisions
 
-* **Python 3.8**
-* **OpenCV 4.6** – image processing
-* **TensorFlow 2.12** – for MTCNN model support
-* **MTCNN** – for face detection and keypoint localization
+| Decision | Rationale |
+|----------|-----------|
+| **Edge density over CNN** | Explainability, no training data needed, runs on CPU without GPU dependencies |
+| **MTCNN for face detection** | Provides eye landmarks out-of-the-box; avoids separate facial landmark model |
+| **Sobel vertical edges** | Glasses frames create strong horizontal lines; vertical Sobel captures these reliably |
+| **Otsu thresholding** | Adaptive to varying lighting; no manual threshold tuning per environment |
+| **Weighted ROI scoring (0.3/0.7)** | Cheek shadow regions proved more discriminative than nose bridge in testing |
+| **Face alignment before analysis** | Normalizes head tilt, ensuring ROI positions remain consistent across poses |
 
-## Getting Started
+## Key Features
+- Real-time detection at 25-30 FPS on CPU (no GPU required).
+- Explainable decisions via visible edge regions and numeric scores.
+- Configurable threshold for precision/recall trade-off via CLI.
+- Multi-face support with per-person labeling.
+- Debug mode to visualize extracted regions in separate windows.
 
-1. **Clone the repository:**
+## Tech Stack (With Purpose)
+| Tool | Role |
+|------|------|
+| **Python 3.8+** | Core runtime; compatibility with TensorFlow and OpenCV |
+| **OpenCV 4.6+** | Frame capture, image transforms, edge detection, display |
+| **TensorFlow 2.12+** | Backend for MTCNN model inference |
+| **MTCNN** | Face bounding box + eye/nose/mouth landmark extraction |
+| **NumPy** | Array operations for ROI slicing and density calculations |
 
+## System Workflow (Chronological Processing Steps)
+1. Initialize `EyeglassDetector` with configurable threshold (default 0.15).
+2. Open webcam stream via OpenCV.
+3. For each frame:
+   - Convert BGR → RGB for MTCNN.
+   - Detect all faces and extract landmarks.
+   - Per face: align, convert to grayscale, compute edge map.
+   - Extract nose-bridge and cheek ROIs from edge map.
+   - Calculate edge densities and combine into weighted score.
+   - Compare score against threshold; annotate frame with result.
+4. Display annotated frame; repeat until user presses 'q'.
+5. Release camera and close windows.
+
+## Input Format
+- **Camera**: Any OpenCV-compatible webcam (device ID configurable via `--camera`).
+- **Static Image** (API usage):
+  ```python
+  import cv2
+  from glass_detection import EyeglassDetector
+
+  detector = EyeglassDetector(threshold=0.15)
+  frame = cv2.imread("face.jpg")
+  annotated, results = detector.process_frame(frame)
+  ```
+
+## Output Format
+- **Annotated Frame**: Bounding boxes, eye markers, and "Wearing Glasses" / "No Glasses" labels.
+- **Results List** (API usage):
+  ```python
+  [
+      {
+          "person_id": 1,
+          "bbox": [120, 80, 200, 250],
+          "wearing_glasses": True,
+          "score": 0.1823
+      }
+  ]
+  ```
+- **Debug Windows** (with `--debug` flag): Separate windows showing the nose-bridge and cheek edge regions.
+
+## Results / Evidence
+
+### Accuracy Benchmarks
+
+| Threshold | Accuracy | Precision | Recall | F1 Score |
+|-----------|----------|-----------|--------|----------|
+| 0.10 | 78.5% | 0.81 | 0.75 | 0.78 |
+| **0.15** | **84.2%** | **0.87** | **0.82** | **0.84** |
+| 0.20 | 71.0% | 0.73 | 0.69 | 0.71 |
+
+### Performance Benchmarks
+
+| Scenario | FPS |
+|----------|-----|
+| Single face | ~28-32 |
+| Up to 4 faces | ~22-26 |
+
+*Tested on Intel i7-9700K, 16GB RAM, Logitech C920 HD webcam*
+
+## Installation Instructions
+1. Clone the repository:
    ```bash
    git clone https://github.com/siddharth-narigra/realtime-glass-detection.git
    cd realtime-glass-detection
    ```
-
-2. **Set up a virtual environment (recommended):**
-
+2. Create and activate a virtual environment:
    ```bash
    python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
+   .venv\Scripts\activate      # Windows
+   source .venv/bin/activate   # macOS/Linux
    ```
-
-3. **Install the dependencies:**
-
+3. Install dependencies:
    ```bash
-   pip install opencv-python tensorflow mtcnn
+   pip install -r requirements.txt
    ```
 
-4. **Run the script:**
-
+## How to Run
+1. **Basic webcam detection**
    ```bash
-   python eyeglass_detector.py
+   python scripts/run_webcam.py
+   ```
+2. **Custom threshold and debug mode**
+   ```bash
+   python scripts/run_webcam.py --threshold 0.12 --camera 0 --debug
+   ```
+3. **View all options**
+   ```bash
+   python scripts/run_webcam.py --help
    ```
 
-## Project Structure
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--camera`, `-c` | Camera device ID | 0 |
+| `--threshold`, `-t` | Detection threshold (0.0-1.0) | 0.15 |
+| `--debug`, `-d` | Show ROI debug windows | Off |
 
+Press **'q'** to quit the application.
+
+## Python API Usage
+```python
+from glass_detection import EyeglassDetector
+import cv2
+
+# Initialize
+detector = EyeglassDetector(threshold=0.15)
+
+# Process a single image
+frame = cv2.imread("photo.jpg")
+annotated_frame, results = detector.process_frame(frame)
+
+for r in results:
+    status = "Glasses" if r["wearing_glasses"] else "No glasses"
+    print(f"Person {r['person_id']}: {status} (score: {r['score']:.3f})")
+
+# Or run on webcam
+detector.run_webcam(camera_id=0, show_debug=True)
+```
+
+## Folder Structure
 ```
 realtime-glass-detection/
-├── README.md
-└── realtime-glasses-detection/
-    ├── data/
-    │   └── shape_predictor_5_face_landmarks.dat
-    └── eyeglass_detector.py
+├── README.md              # This document
+├── requirements.txt       # Python dependencies
+├── LICENSE                # MIT License
+├── .gitignore             # Git exclusions
+├── src/
+│   └── glass_detection/
+│       ├── __init__.py        # Package exports
+│       ├── detector.py        # EyeglassDetector class
+│       ├── face_alignment.py  # Eye extraction + face alignment
+│       └── utils.py           # Edge detection + ROI helpers
+└── scripts/
+    └── run_webcam.py          # CLI entry point
 ```
 
-## How It Works
-
-1. **Face Detection & Landmarks**
-   MTCNN finds faces and extracts key points like eyes and mouth.
-
-2. **Face Alignment**
-   The face is rotated so the eyes are level, making further analysis more accurate.
-
-3. **Edge Detection**
-   Gaussian blur reduces noise, and Sobel filters highlight edges (especially glasses frames).
-
-4. **Thresholding**
-   Otsu’s method finds the best threshold to isolate strong edges from noise.
-
-5. **Eyeglass Detection**
-   The system looks at two small areas on the face:
-
-   * Above the nose (frame edges)
-   * Cheek area (lens shadows)
-
-   It calculates edge density in both and uses a weighted score:
-
-   ```
-   Score = 0.3 × EdgeDensity1 + 0.7 × EdgeDensity2
-   ```
-
-   If the score is above `0.15`, glasses are detected.
-
-## Real-Time System Setup
-
-* **System:** Intel i7-9700K, 16GB RAM, Windows 10
-* **Webcam:** Logitech C920 HD
-* **Performance:**
-
-  * \~28–32 FPS (1 face)
-  * \~22–26 FPS (up to 4 faces)
-
-The system runs efficiently without requiring a GPU.
-
-## Results
-
-Tested on live webcam feeds with different faces, poses, and lighting:
-
-| Threshold | Accuracy (%) | Precision |   Recall | F1 Score |
-| --------- | -----------: | --------: | -------: | -------: |
-| 0.10      |         78.5 |      0.81 |     0.75 |     0.78 |
-| **0.15**  |     **84.2** |  **0.87** | **0.82** | **0.84** |
-| 0.20      |         71.0 |      0.73 |     0.69 |     0.71 |
-
-**Best performance** was at a threshold of 0.15 with balanced precision and recall.
-
-### Metrics
-
-* **Accuracy**
-* **Precision** = TP / (TP + FP)
-* **Recall** = TP / (TP + FN)
-* **F1 Score** = 2 × (Precision × Recall) / (Precision + Recall)
-
-## Environmental Notes
-
-Performance was consistent, but lighting variations sometimes caused false positives. Adding methods like CLAHE (adaptive histogram equalization) can further improve robustness under challenging conditions.
+## Limitations
+- **Lighting sensitivity**: Strong shadows or extreme backlighting can create false edge patterns.
+- **Partial occlusion**: Hands covering the face or unusual angles reduce landmark accuracy.
+- **Thin/frameless glasses**: Very thin or transparent frames produce weaker edge signatures.
+- **MTCNN latency**: First inference is slow (~1-2s) due to model loading; subsequent frames run faster.
+- **Single-camera input**: No support for video file input (webcam only in current CLI).
 
 ## Future Improvements
+- [ ] Add CLAHE preprocessing for low-contrast frames.
+- [ ] Support video file input alongside webcam.
+- [ ] Integrate lightweight CNN as optional hybrid mode for edge cases.
+- [ ] Add batch image processing for dataset evaluation.
+- [ ] Publish as pip-installable package.
 
-* Add CLAHE to improve contrast in poor lighting
-* Explore hybrid methods with light neural networks
-* Include datasets for benchmarking and reproducibility
+## License
+[MIT License](LICENSE)
